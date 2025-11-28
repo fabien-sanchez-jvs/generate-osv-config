@@ -21,10 +21,23 @@ Analyses vulnerabilities detected by osv-scanner and generates an `osv-scanner.t
 - `AZUREAI_API_KEY`: Azure OpenAI API key
 - `AZUREAI_BASE_URL`: Azure OpenAI service URL (e.g., `https://your-resource.openai.azure.com`)
 - `AZUREAI_API_VERSION`: API version (e.g., `2023-05-15`)
+- `AZUREAI_DEPLOYMENT`: Azure OpenAI deployment name (e.g., `CommuniCity`)
 
 **Note:** The script works without Azure AI variables, but automatic suggestions will not be available.
 
 ## Installation
+
+### As a dependency in your project
+
+```bash
+npm install osv-config-tool --save-dev
+# or
+yarn add osv-config-tool --dev
+# or
+pnpm add osv-config-tool --save-dev
+```
+
+### For development
 
 ```bash
 npm install
@@ -32,6 +45,25 @@ npm run build
 ```
 
 ## Usage
+
+### Using as an installed dependency
+
+After installing the package as a dependency, you can run it using npx or add it to your scripts:
+
+```bash
+# Using npx
+npx generate-osv-config
+
+# Or add to package.json scripts
+{
+  "scripts": {
+    "check-vulnerabilities": "generate-osv-config",
+    "check-vulnerabilities:dry-run": "generate-osv-config --dry-run"
+  }
+}
+```
+
+### Using in development mode
 
 ```bash
 # Interactive normal mode
