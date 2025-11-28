@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+osv-scanner.toml
+osv-scanner.toml.backup.*
+osv-scanner-report.md

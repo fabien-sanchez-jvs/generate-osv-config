@@ -1,0 +1,45 @@
+{
+  "name": "osv-config-tool",
+  "version": "1.0.0",
+  "description": "Generate OSV-Scanner configuration from vulnerability scan",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "generate-osv-config": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "clean": "rm -rf dist",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "security",
+    "osv-scanner",
+    "vulnerability",
+    "npm",
+    "yarn",
+    "pnpm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^11.1.0",
+    "openai": "^6.9.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.25",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
