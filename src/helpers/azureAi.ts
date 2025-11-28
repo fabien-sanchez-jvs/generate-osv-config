@@ -29,14 +29,15 @@ export class AzureAIClient {
   private apiKey: string;
   private baseUrl: string;
   private apiVersion: string;
+  private deployment: string;
   private logFile: string;
   private client: OpenAI;
-  private deploymentMapping: Record<string, string>;
 
   constructor() {
     this.apiKey = process.env.AZUREAI_API_KEY || '';
     this.baseUrl = process.env.AZUREAI_BASE_URL || '';
     this.apiVersion = process.env.AZUREAI_API_VERSION || '';
+    this.deployment = process.env.AZUREAI_DEPLOYMENT || '';
 
     // Setup logging
     const envLogFile = process.env.AZUREAI_LOGFILE;
@@ -44,18 +45,9 @@ export class AzureAIClient {
       ? path.resolve(os.homedir(), envLogFile.replace(/^~/, ''))
       : path.join(os.homedir(), '.azure_ai_usage.log');
 
-    // Deployment mapping
-    this.deploymentMapping = {
-      'gpt-3.5-turbo': 'CommuniCity',
-      'gpt-35-turbo': 'CommuniCity',
-      'gpt-4': 'Communicity-gpt-4',
-      'gpt-4-turbo': 'Communicity-gpt-4',
-      'gpt-4o': 'Communicity-gpt-4',
-    };
-
-    if (!this.apiKey || !this.baseUrl || !this.apiVersion) {
+    if (!this.apiKey || !this.baseUrl || !this.apiVersion || !this.deployment) {
       throw new Error(
-        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION'
+        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION, AZUREAI_DEPLOYMENT'
       );
     }
 
@@ -92,20 +84,7 @@ export class AzureAIClient {
     }
   }
 
-  private getDeploymentName(model: string): string {
-    const knownDeployments = ['CommuniCity', 'Communicity-gpt-4'];
-    if (knownDeployments.includes(model)) {
-      return model;
-    }
 
-    const deployment = this.deploymentMapping[model];
-    if (deployment) {
-      return deployment;
-    }
-
-    console.log(`⚠️  Modèle '${model}' non reconnu, utilisation de gpt-3.5-turbo par défaut`);
-    return this.deploymentMapping['gpt-3.5-turbo'];
-  }
 
   async askQuestion(
     question: string,
@@ -114,10 +93,8 @@ export class AzureAIClient {
     temperature: number = 0.7
   ): Promise<string | null> {
     try {
-      const deploymentName = this.getDeploymentName(model);
-
       const completion = await this.client.chat.completions.create({
-        model: deploymentName,
+        model: this.deployment,
         messages: [
           {
             role: 'user',

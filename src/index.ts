@@ -18,6 +18,7 @@
  *     - AZUREAI_API_KEY: Azure OpenAI API key
  *     - AZUREAI_BASE_URL: Azure OpenAI service URL (e.g., https://your-resource.openai.azure.com)
  *     - AZUREAI_API_VERSION: API version (e.g., 2023-05-15)
+ *     - AZUREAI_DEPLOYMENT: Azure OpenAI deployment name (e.g., CommuniCity)
  *
  * FUNCTIONALITY:
  *     1. Detects package manager (yarn/npm/pnpm) and its lockfile
@@ -71,11 +72,11 @@ interface PackageJson {
 
 // Print utilities
 function printError(message: string): void {
-  console.error(chalk.red(`❌ ${message}`));
+  console.error(chalk.red(`❌  ${message}`));
 }
 
 function printSuccess(message: string): void {
-  console.log(chalk.green(`✅ ${message}`));
+  console.log(chalk.green(`✅  ${message}`));
 }
 
 function printInfo(message: string): void {
