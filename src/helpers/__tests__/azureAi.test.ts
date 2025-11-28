@@ -21,6 +21,7 @@ describe('AzureAIClient', () => {
       AZUREAI_API_KEY: 'test-api-key',
       AZUREAI_BASE_URL: 'https://test.openai.azure.com/',
       AZUREAI_API_VERSION: '2023-05-15',
+      AZUREAI_DEPLOYMENT: 'test-deployment',
     };
 
     mockCreate = jest.fn().mockResolvedValue({
@@ -69,21 +70,28 @@ describe('AzureAIClient', () => {
     it('should throw error if API key is missing', () => {
       delete process.env.AZUREAI_API_KEY;
       expect(() => new AzureAIClient()).toThrow(
-        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION'
+        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION, AZUREAI_DEPLOYMENT'
       );
     });
 
     it('should throw error if base URL is missing', () => {
       delete process.env.AZUREAI_BASE_URL;
       expect(() => new AzureAIClient()).toThrow(
-        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION'
+        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION, AZUREAI_DEPLOYMENT'
       );
     });
 
     it('should throw error if API version is missing', () => {
       delete process.env.AZUREAI_API_VERSION;
       expect(() => new AzureAIClient()).toThrow(
-        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION'
+        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION, AZUREAI_DEPLOYMENT'
+      );
+    });
+
+    it('should throw error if deployment is missing', () => {
+      delete process.env.AZUREAI_DEPLOYMENT;
+      expect(() => new AzureAIClient()).toThrow(
+        'Missing required environment variables: AZUREAI_API_KEY, AZUREAI_BASE_URL, AZUREAI_API_VERSION, AZUREAI_DEPLOYMENT'
       );
     });
 
@@ -118,7 +126,7 @@ describe('AzureAIClient', () => {
 
       expect(response).toBe('Test response');
       expect(mockCreate).toHaveBeenCalledWith({
-        model: 'CommuniCity',
+        model: 'test-deployment',
         messages: [
           {
             role: 'user',
@@ -135,7 +143,7 @@ describe('AzureAIClient', () => {
       await client.askQuestion('Test question', 'gpt-4', 2000, 0.5);
 
       expect(mockCreate).toHaveBeenCalledWith({
-        model: 'Communicity-gpt-4',
+        model: 'test-deployment',
         messages: [
           {
             role: 'user',
@@ -147,49 +155,7 @@ describe('AzureAIClient', () => {
       });
     });
 
-    it('should use deployment mapping for known models', async () => {
-      const client = new AzureAIClient();
-      await client.askQuestion('Test', 'gpt-3.5-turbo');
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: 'CommuniCity',
-        })
-      );
 
-      await client.askQuestion('Test', 'gpt-4');
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: 'Communicity-gpt-4',
-        })
-      );
-    });
-
-    it('should use direct deployment name for known deployments', async () => {
-      const client = new AzureAIClient();
-      await client.askQuestion('Test', 'CommuniCity');
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: 'CommuniCity',
-        })
-      );
-    });
-
-    it('should fallback to default model for unknown models', async () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-      const client = new AzureAIClient();
-      await client.askQuestion('Test', 'unknown-model');
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Modèle 'unknown-model' non reconnu")
-      );
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: 'CommuniCity',
-        })
-      );
-
-      consoleLogSpy.mockRestore();
-    });
 
     it('should log usage data', async () => {
       const client = new AzureAIClient();
