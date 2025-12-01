@@ -1,8 +1,8 @@
 /**
  * Unit tests for Console helper library
- */
+*/
 
-// Mock readline module BEFORE imports
+// ⚠️ Mock readline module BEFORE imports
 const mockQuestion = jest.fn();
 const mockClose = jest.fn();
 
@@ -13,7 +13,7 @@ jest.mock('readline', () => ({
   })),
 }));
 
-import { question } from '../console';
+import { question } from './console';
 
 describe('question', () => {
   beforeEach(() => {

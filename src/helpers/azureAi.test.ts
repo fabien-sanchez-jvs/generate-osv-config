@@ -3,7 +3,7 @@
  */
 
 import * as fs from 'fs';
-import { AzureAIClient } from '../azureAi';
+import { AzureAIClient } from './azureAi';
 import OpenAI from 'openai';
 
 jest.mock('fs');
