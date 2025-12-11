@@ -6,3 +6,4 @@ dist/
 osv-scanner.toml
 osv-scanner.toml.backup.*
 osv-scanner-report.md
+.npmrc

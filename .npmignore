@@ -22,3 +22,5 @@ node_modules/
 # IDE
 .vscode/
 .idea/
+
+.npmrc
