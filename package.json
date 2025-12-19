@@ -1,6 +1,6 @@
 {
   "name": "@fabien-sanchez-jvs/generate-osv-config",
-  "version": "1.1.10",
+  "version": "1.1.12",
   "description": "Generate OSV-Scanner configuration from vulnerability scan",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
@@ -22,6 +22,7 @@
     "clean": "rm -rf dist",
     "publish:connect": "npm login --scope=@fabien-sanchez-jvs --registry https://registry.npmjs.org/ --auth-type=legacy",
     "prepublishOnly": "npm run clean && npm test && npm run build",
+    "publishX": "npm publish",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
