@@ -1,10 +1,5 @@
-/**
- * Unit tests for generate-osv-config main functionality
- */
-
 import * as fs from 'fs';
 import { spawnSync } from 'child_process';
-import * as glob from 'glob';
 
 // Mock dependencies before importing
 jest.mock('fs');

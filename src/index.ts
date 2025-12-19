@@ -52,6 +52,8 @@ import { spawnSync } from 'child_process';
 import chalk from 'chalk';
 import { question } from './helpers/console.js';
 import { AzureAIClient } from './helpers/azureAi.js';
+import { PackageManager } from './helpers/packageManager.js';
+import { detectPackageManager } from './helpers/packageManagerDetector.js';
 
 interface Vulnerability {
   name: string;
@@ -196,58 +198,11 @@ function getDependencies(): [Set<string>, Set<string>] {
   return [allDeps, allDevDeps];
 }
 
-// Detect package manager
-function detectPackageManager(): [string, string] | null {
-  const yarn: [string, string] = ['yarn', 'yarn.lock']
-  const npm: [string, string] = ['npm', 'package-lock.json'];
-  const pnpm: [string, string] = ['pnpm', 'pnpm-lock.yaml'];
-  // Try to read packageManager from package.json
+// Update packages (wrapper function for backwards compatibility)
+function updatePackages(packageManager: PackageManager): boolean {
   try {
-    const content = fs.readFileSync('package.json', 'utf-8');
-    const packageJson: PackageJson = JSON.parse(content);
-    if (packageJson.packageManager) {
-      const pmString = packageJson.packageManager;
-      if (pmString.startsWith('yarn')) return yarn;
-      if (pmString.startsWith('npm')) return npm;
-      if (pmString.startsWith('pnpm')) return pnpm;
-    }
-  } catch {
-    // Ignore
-  }
-
-  // Check for lock files
-  if (fs.existsSync('yarn.lock')) return yarn;
-  if (fs.existsSync('package-lock.json')) return npm;
-  if (fs.existsSync('pnpm-lock.yaml')) return pnpm;
-
-  return null;
-}
-
-// Get package manager version
-function getPackageManagerVersion(pmName: string): string | null {
-  try {
-    const result = spawnSync(pmName, ['--version'], { encoding: 'utf-8' });
-    return result.status === 0 ? result.stdout.trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-// Update packages
-function updatePackages(pmName: string): boolean {
-  const commands: Record<string, string[]> = {
-    npm: ['npm', 'update'],
-    yarn: ['yarn', 'upgrade'],
-    pnpm: ['pnpm', 'update'],
-  };
-
-  try {
-    const cmd = commands[pmName];
-    if (!cmd) return false;
-
-    printInfo(`Mise à jour des packages avec ${pmName}...`);
-    const result = spawnSync(cmd[0], cmd.slice(1), { stdio: 'inherit' });
-    return result.status === 0;
+    printInfo(`Mise à jour des packages avec ${packageManager.name}...`);
+    return packageManager.update();
   } catch {
     printError('Erreur lors de la mise à jour des packages');
     return false;
@@ -274,139 +229,7 @@ function runOsvScan(lockfile: string): any | null {
   }
 }
 
-// Parse yarn why output
-function parseYarnWhyOutput(output: string, version?: string): string {
-  const lines = output.trim().split('\n');
 
-  if (!version) {
-    const reasons: string[] = [];
-    for (const line of lines) {
-      try {
-        const data = JSON.parse(line);
-        if (data.type === 'list' && data.data?.type === 'reasons') {
-          const items = data.data.items || [];
-          reasons.push(...items);
-        }
-      } catch {
-        continue;
-      }
-    }
-
-    if (reasons.length > 0) {
-      const cleaned = reasons.map((r) => r.replace(/^"/, '').replace(/"$/, '').replace('_project_#', ''));
-      return cleaned.join(' | ');
-    }
-
-    return 'Unable to parse yarn output';
-  }
-
-  // Extract version-specific lines
-  const versionLines = extractVersionLines(lines, version);
-  const dependencyChains = extractDependencyChains(versionLines);
-
-  if (dependencyChains.length > 0) {
-    return dependencyChains.slice(0, 5).join(' | ');
-  }
-
-  return 'Unable to parse yarn output';
-}
-
-function extractVersionLines(lines: string[], version: string): any[] {
-  const versionBlocks: any[][] = [];
-  let currentBlock: any[] = [];
-  let inVersionBlock = false;
-
-  for (const line of lines) {
-    try {
-      const data = JSON.parse(line);
-
-      if (data.type === 'info') {
-        const info = data.data || '';
-        if (info.includes('=> Found') && info.includes(`@${version}`)) {
-          if (currentBlock.length > 0) {
-            versionBlocks.push(currentBlock);
-          }
-          currentBlock = [];
-          inVersionBlock = true;
-        } else if (info.includes('=> Found')) {
-          if (inVersionBlock && currentBlock.length > 0) {
-            versionBlocks.push(currentBlock);
-          }
-          inVersionBlock = false;
-          currentBlock = [];
-        }
-      }
-
-      if (inVersionBlock) {
-        currentBlock.push(data);
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  if (inVersionBlock && currentBlock.length > 0) {
-    versionBlocks.push(currentBlock);
-  }
-
-  const allVersionLines: any[] = [];
-  for (const block of versionBlocks) {
-    allVersionLines.push(...block);
-  }
-
-  return allVersionLines;
-}
-
-function extractDependencyChains(versionLines: any[]): string[] {
-  const chains: string[] = [];
-
-  for (const data of versionLines) {
-    const dataType = data.type;
-
-    if (dataType === 'list' && data.data?.type === 'reasons') {
-      const items = data.data.items || [];
-      for (const item of items) {
-        let chain = item.replace(/^"/, '').replace(/"$/, '').replace('_project_#', '');
-        if (chain && !chain.includes('workspace aggregator')) {
-          chains.push(chain);
-        }
-      }
-    } else if (dataType === 'tree') {
-      const trees = data.data?.trees || [];
-      for (const tree of trees) {
-        const chain = extractChainFromTree(tree);
-        if (chain) {
-          chains.push(chain);
-        }
-      }
-    }
-  }
-
-  // Remove duplicates
-  const seen = new Set<string>();
-  const uniqueChains: string[] = [];
-  for (const chain of chains) {
-    if (!seen.has(chain)) {
-      seen.add(chain);
-      uniqueChains.push(chain);
-    }
-  }
-
-  return uniqueChains;
-}
-
-function extractChainFromTree(tree: any, parentChain: string = ''): string | null {
-  if (!tree || typeof tree !== 'object') return null;
-
-  const name = tree.name || '';
-  const currentChain = parentChain ? `${parentChain} → ${name}` : name;
-
-  if (tree.children && tree.children.length > 0) {
-    return extractChainFromTree(tree.children[0], currentChain);
-  }
-
-  return currentChain;
-}
 
 // Extract package names from chain
 function extractPackageNamesFromChain(depChain: string): string[] {
@@ -424,28 +247,9 @@ function extractPackageNamesFromChain(depChain: string): string[] {
   return packages;
 }
 
-// Get dependency chain
-function getDependencyChain(pmName: string, packageName: string, version: string): string {
-  const commands: Record<string, string[]> = {
-    npm: ['npm', 'ls', `${packageName}@${version}`, '--all'],
-    yarn: ['yarn', 'why', '--json', packageName],
-    pnpm: ['pnpm', 'why', `${packageName}@${version}`],
-  };
-
-  try {
-    const cmd = commands[pmName];
-    if (!cmd) return 'Unable to determine dependency chain';
-
-    const result = spawnSync(cmd[0], cmd.slice(1), { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-
-    if (pmName === 'yarn' && result.stdout) {
-      return parseYarnWhyOutput(result.stdout, version);
-    }
-
-    return result.stdout ? result.stdout.trim() : 'Unable to determine dependency chain';
-  } catch {
-    return 'Unable to determine dependency chain';
-  }
+// Get dependency chain (wrapper function for backwards compatibility)
+function getDependencyChain(packageManager: PackageManager, packageName: string, version: string): string {
+  return packageManager.getDependencyChain(packageName, version);
 }
 
 // Ask AI for suggestion
@@ -594,7 +398,7 @@ async function suggestReason(
 }
 
 // Parse vulnerabilities
-async function parseVulnerabilities(scanResult: any, pmName: string): Promise<Vulnerability[]> {
+async function parseVulnerabilities(scanResult: any, packageManager: PackageManager): Promise<Vulnerability[]> {
   const vulnerabilities: Vulnerability[] = [];
 
   if (!scanResult || !scanResult.results) {
@@ -625,7 +429,7 @@ async function parseVulnerabilities(scanResult: any, pmName: string): Promise<Vu
       }
 
       if (vulnIds.length > 0) {
-        const depChain = getDependencyChain(pmName, pkgName, pkgVersion);
+        const depChain = getDependencyChain(packageManager, pkgName, pkgVersion);
 
         const [reason, showAlternatives] = await suggestReason(
           pkgName,
@@ -654,12 +458,12 @@ async function parseVulnerabilities(scanResult: any, pmName: string): Promise<Vu
 }
 
 // Generate TOML config
-function generateTomlConfig(vulnerabilities: Vulnerability[], pmName: string): [string, Vulnerability[]] {
+function generateTomlConfig(vulnerabilities: Vulnerability[], packageManager: PackageManager): [string, Vulnerability[]] {
   const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
   let config = `# Generated by generate-osv-config
 # Date: ${timestamp}
-# Package Manager: ${pmName}
+# Package Manager: ${packageManager.name}
 # Total vulnerabilities ignored: ${vulnerabilities.length}
 
 `;
@@ -819,36 +623,35 @@ async function main() {
   }
 
   // 2. Detect package manager
-  const pmInfo = detectPackageManager();
-  if (!pmInfo) {
+  const packageManager = detectPackageManager();
+  if (!packageManager) {
     printError('Impossible de détecter le package manager');
     process.exit(1);
   }
 
-  const [pmName, lockfile] = pmInfo;
-  const pmVersion = getPackageManagerVersion(pmName);
+  const pmVersion = packageManager.getVersion();
 
   if (!pmVersion) {
-    printError(`${pmName} n'est pas installé ou accessible`);
+    printError(`${packageManager.name} n'est pas installé ou accessible`);
     process.exit(1);
   }
 
-  console.log(`📦 Package manager détecté: ${chalk.cyan(pmName)} v${pmVersion}`);
+  console.log(`📦 Package manager détecté: ${chalk.cyan(packageManager.name)} v${pmVersion}`);
 
   // 3. Update packages (optional)
   if (!options.dryRun) {
-    updatePackages(pmName);
+    updatePackages(packageManager);
   }
 
   // 4. Run OSV-Scanner
-  const scanResult = runOsvScan(lockfile);
+  const scanResult = runOsvScan(packageManager.lockfile);
   if (!scanResult) {
     printWarning('Aucune vulnérabilité détectée ou erreur lors du scan');
     process.exit(0);
   }
 
   // 5. Parse vulnerabilities
-  const vulnerabilities = await parseVulnerabilities(scanResult, pmName);
+  const vulnerabilities = await parseVulnerabilities(scanResult, packageManager);
 
   if (vulnerabilities.length === 0) {
     printSuccess('Aucune vulnérabilité à traiter');
@@ -861,16 +664,16 @@ async function main() {
   // 6. Generate configuration file
   if (options.dryRun) {
     printInfo('Mode dry-run: aucun fichier ne sera créé');
-    const [configContent] = generateTomlConfig(vulnerabilities, pmName);
+    const [configContent] = generateTomlConfig(vulnerabilities, packageManager);
     console.log('\n--- Contenu du fichier osv-scanner.toml ---');
     console.log(configContent);
   } else {
-    const [configContent, filteredVulns] = generateTomlConfig(vulnerabilities, pmName);
+    const [configContent, filteredVulns] = generateTomlConfig(vulnerabilities, packageManager);
     fs.writeFileSync('osv-scanner.toml', configContent, 'utf-8');
     printSuccess(`Fichier osv-scanner.toml créé avec ${filteredVulns.length} vulnérabilités ignorées`);
 
     // 7. Verify configuration
-    verifyConfig(lockfile);
+    verifyConfig(packageManager.lockfile);
 
     // 8. Generate report
     if (options.report) {
