@@ -43,35 +43,11 @@ export class YarnPackageManager implements PackageManager {
     }
   }
 
-  private parseYarnWhyOutput(output: string, version?: string): string {
+  private parseYarnWhyOutput(output: string, version: string): string {
     const lines = output.trim().split("\n");
 
-    if (!version) {
-      const reasons: string[] = [];
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
-          if (data.type === "list" && data.data?.type === "reasons") {
-            const items = data.data.items || [];
-            reasons.push(...items);
-          }
-        } catch {
-          continue;
-        }
-      }
-
-      if (reasons.length > 0) {
-        const cleaned = reasons.map((r) =>
-          r.replace(/^"/, "").replace(/"$/, "").replace("_project_#", ""),
-        );
-        return cleaned.join(" | ");
-      }
-
-      return "Unable to parse yarn output";
-    }
-
-    // Extract version-specific lines
     const versionLines = this.extractVersionLines(lines, version);
+
     const dependencyChains = this.extractDependencyChains(versionLines);
 
     if (dependencyChains.length > 0) {
@@ -123,7 +99,7 @@ export class YarnPackageManager implements PackageManager {
     for (const block of versionBlocks) {
       allVersionLines.push(...block);
     }
-
+    
     return allVersionLines;
   }
 
@@ -140,7 +116,13 @@ export class YarnPackageManager implements PackageManager {
             .replace(/^"/, "")
             .replace(/"$/, "")
             .replace("_project_#", "");
-          if (chain && !chain.includes("workspace aggregator")) {
+          if (
+            chain &&
+            !(
+              chain.includes("workspace aggregator") ||
+              chain.includes("workspace-aggregator")
+            )
+          ) {
             chains.push(chain);
           }
         }
@@ -149,6 +131,37 @@ export class YarnPackageManager implements PackageManager {
         for (const tree of trees) {
           const chain = this.extractChainFromTree(tree);
           if (chain) {
+            chains.push(chain);
+          }
+        }
+      } else if (dataType === "info") {
+        // Extract chain from "This module exists because..." or "depends on it" messages
+        const info = data.data || "";
+        const dependsMatch = info.match(/"([^"]+)" depends on it/);
+        const existsMatch = info.match(
+          /exists because "([^"]+)" depends on it/
+        );
+
+        if (dependsMatch && dependsMatch[1]) {
+          const chain = dependsMatch[1].replace("_project_#", "");
+          if (
+            chain &&
+            !(
+              chain.includes("workspace aggregator") ||
+              chain.includes("workspace-aggregator")
+            )
+          ) {
+            chains.push(chain);
+          }
+        } else if (existsMatch && existsMatch[1]) {
+          const chain = existsMatch[1].replace("_project_#", "");
+          if (
+            chain &&
+            !(
+              chain.includes("workspace aggregator") ||
+              chain.includes("workspace-aggregator")
+            )
+          ) {
             chains.push(chain);
           }
         }
@@ -164,13 +177,13 @@ export class YarnPackageManager implements PackageManager {
         uniqueChains.push(chain);
       }
     }
-
+    
     return uniqueChains;
   }
 
   private extractChainFromTree(
     tree: any,
-    parentChain: string = "",
+    parentChain: string = ""
   ): string | null {
     if (!tree || typeof tree !== "object") return null;
 
