@@ -1,6 +1,6 @@
 {
   "name": "@fabien-sanchez-jvs/generate-osv-config",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "Generate OSV-Scanner configuration from vulnerability scan",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
