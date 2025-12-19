@@ -3,7 +3,7 @@
  * Provides user interaction utilities
  */
 
-import * as readline from 'readline';
+import * as readline from "readline";
 
 /**
  * Ask user a question and get input
