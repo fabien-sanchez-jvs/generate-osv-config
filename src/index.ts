@@ -198,24 +198,27 @@ function getDependencies(): [Set<string>, Set<string>] {
 
 // Detect package manager
 function detectPackageManager(): [string, string] | null {
+  const yarn: [string, string] = ['yarn', 'yarn.lock']
+  const npm: [string, string] = ['npm', 'package-lock.json'];
+  const pnpm: [string, string] = ['pnpm', 'pnpm-lock.yaml'];
   // Try to read packageManager from package.json
   try {
     const content = fs.readFileSync('package.json', 'utf-8');
     const packageJson: PackageJson = JSON.parse(content);
     if (packageJson.packageManager) {
       const pmString = packageJson.packageManager;
-      if (pmString.startsWith('yarn')) return ['yarn', 'yarn.lock'];
-      if (pmString.startsWith('npm')) return ['npm', 'package-lock.json'];
-      if (pmString.startsWith('pnpm')) return ['pnpm', 'pnpm-lock.yaml'];
+      if (pmString.startsWith('yarn')) return yarn;
+      if (pmString.startsWith('npm')) return npm;
+      if (pmString.startsWith('pnpm')) return pnpm;
     }
   } catch {
     // Ignore
   }
 
   // Check for lock files
-  if (fs.existsSync('yarn.lock')) return ['yarn', 'yarn.lock'];
-  if (fs.existsSync('package-lock.json')) return ['npm', 'package-lock.json'];
-  if (fs.existsSync('pnpm-lock.yaml')) return ['pnpm', 'pnpm-lock.yaml'];
+  if (fs.existsSync('yarn.lock')) return yarn;
+  if (fs.existsSync('package-lock.json')) return npm;
+  if (fs.existsSync('pnpm-lock.yaml')) return pnpm;
 
   return null;
 }
